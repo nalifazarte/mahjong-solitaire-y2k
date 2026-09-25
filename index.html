@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#ff4fd8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mahjong Y2K">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Mahjong Solitaire Y2K</title>
+<style>
+:root{--panel:#fff7fd;--ink:#25142d;--accent:#ff3dcc;--tile:#fff;--shadow:#9a6ca5}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:radial-gradient(circle at 20% 10%,#fff 0 3%,transparent 4%),linear-gradient(135deg,#b7f5ff,#ffc6ef 45%,#c9b7ff);background-attachment:fixed}
+body.cyber{--panel:#101d39;--ink:#d9fbff;--accent:#00f0ff;--tile:#d9fbff;--shadow:#00131f;background:#071326}
+body.dark{--panel:#1b1b1b;--ink:#eee;--accent:#ff5abf;--tile:#e9e9e9;--shadow:#000;background:#111}
+.app{max-width:1050px;margin:auto;padding:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:var(--panel);border:3px solid var(--ink);box-shadow:6px 6px 0 var(--shadow);border-radius:14px}
+.logo{font-weight:900;letter-spacing:1px;font-size:clamp(18px,4vw,30px);text-shadow:2px 2px 0 var(--accent)}
+.stats{display:flex;gap:12px;font-weight:800;font-size:13px}
+button{font:inherit;font-weight:800;border:2px solid var(--ink);background:var(--panel);color:var(--ink);border-radius:9px;padding:9px 12px;cursor:pointer;box-shadow:3px 3px 0 var(--shadow)}
+button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.board-wrap{position:relative;overflow:auto;min-height:420px;padding:14px;background:rgba(255,255,255,.28);border:3px solid var(--ink);border-radius:16px;box-shadow:6px 6px 0 var(--shadow)}
+#board{position:relative;width:600px;height:500px;margin:auto;transform-origin:top left}
+.tile{position:absolute;width:42px;height:56px;border:2px solid #252525;border-radius:6px;background:linear-gradient(135deg,var(--tile),#d8d8e8);box-shadow:3px 3px 0 #777;display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:900;color:#1c2430;user-select:none;transition:transform .12s,filter .12s}
+.tile::after{content:"";position:absolute;inset:3px;border:1px solid rgba(0,0,0,.2);border-radius:3px;pointer-events:none}
+.tile.free{cursor:pointer}.tile.selected{transform:translate(-2px,-3px);filter:brightness(1.18);outline:3px solid var(--accent);z-index:99}.tile.blocked{filter:brightness(.65) saturate(.7)}
+.status{text-align:center;font-weight:900;min-height:20px;margin:10px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}.modal.open{display:flex}.modal-card{width:min(520px,100%);padding:20px;background:var(--panel);border:3px solid var(--ink);border-radius:15px;box-shadow:8px 8px 0 var(--shadow)}.modal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:15px}.small{font-size:12px;opacity:.8}
+@media(max-width:700px){header{align-items:flex-start;flex-direction:column}.stats{width:100%;justify-content:space-between}.board-wrap{min-height:350px}#board{transform:scale(.72);transform-origin:top left;margin-left:4px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">MAHJONG // Y2K</div><div class="stats"><span>PAIRS <b id="pairs">0</b></span><span>MOVES <b id="moves">0</b></span><span>TIME <b id="time">00:00</b></span></div></header>
+<div class="toolbar"><button id="newBtn">NEW GAME</button><button id="hintBtn">HINT</button><button id="undoBtn">UNDO</button><button id="themeBtn">THEME</button><button id="layoutBtn">LAYOUT</button></div>
+<div class="board-wrap"><div id="board"></div></div>
+<div class="status" id="status">Choose two matching free tiles.</div>
+<div class="small" style="text-align:center">OFFLINE • NO ADS • SOLVABLE BOARDS</div>
+</div>
+<div class="modal" id="themeModal"><div class="modal-card"><h2>THEME</h2><div class="modal-grid"><button data-theme="y2k">Y2K</button><button data-theme="cyber">CYBER</button><button data-theme="dark">DARK</button></div><p><button data-close>Close</button></p></div></div>
+<div class="modal" id="layoutModal"><div class="modal-card"><h2>LAYOUT</h2><div class="modal-grid"><button data-layout="mini">MINI<br><span class="small">32 tiles</span></button><button data-layout="medium">MEDIUM<br><span class="small">72 tiles</span></button><button data-layout="classic">CLASSIC<br><span class="small">144 tiles</span></button></div><p><button data-close>Close</button></p></div></div>
+<script>
+const TILE_DEFINITIONS=[
+...Array.from({length:9},(_,i)=>({symbol:["竹","二","三","四","五","六","七","八","九"][i],group:"bamboo",name:"Bamboo "+(i+1)})),
+...Array.from({length:9},(_,i)=>({symbol:["●","●●","●●●","●●●●","●●●●●","●●●●●●","●●●●●●●","●●●●●●●●","●●●●●●●●●"][i],group:"circle",name:"Circle "+(i+1)})),
+...Array.from({length:9},(_,i)=>({symbol:["一","二","三","四","五","六","七","八","九"][i],group:"character",name:"Character "+(i+1)})),
+{symbol:"東",group:"wind",name:"East"},{symbol:"南",group:"wind",name:"South"},{symbol:"西",group:"wind",name:"West"},{symbol:"北",group:"wind",name:"North"},
+{symbol:"中",group:"dragon",name:"Red Dragon"},{symbol:"發",group:"dragon",name:"Green Dragon"},{symbol:"白",group:"dragon",name:"White Dragon"},
+{symbol:"🌸",group:"flower",matchGroup:"flowers",name:"Plum"},{symbol:"🌺",group:"flower",matchGroup:"flowers",name:"Orchid"},{symbol:"🌻",group:"flower",matchGroup:"flowers",name:"Chrysanthemum"},{symbol:"🌼",group:"flower",matchGroup:"flowers",name:"Bamboo Flower"},
+{symbol:"🌱",group:"season",matchGroup:"seasons",name:"Spring"},{symbol:"☀",group:"season",matchGroup:"seasons",name:"Summer"},{symbol:"🍂",group:"season",matchGroup:"seasons",name:"Autumn"},{symbol:"❄",group:"season",matchGroup:"seasons",name:"Winter"}
+];
+function layer(z,x0,y0,w,h){const a=[];for(let y=0;y<h;y++)for(let x=0;x<w;x++)a.push({x:x0+x*2,y:y0+y*2,z});return a}
+const layouts={mini:[...layer(0,0,0,4,4),...layer(1,1,1,4,0)],medium:[...layer(0,0,0,6,6),...layer(1,1,1,4,3),...layer(2,2,2,4,1)],classic:[...layer(0,0,0,12,8),...layer(1,3,1,6,6),...layer(2,4,2,4,3)]};
+Object.keys(layouts).forEach(k=>layouts[k]=layouts[k].map((p,i)=>({...p,id:i})));
+const SOLUTION_CACHE=new Map();
+function createLayoutSolver(layout){
+ const n=layout.length,top=Array(n).fill(0n),left=Array(n).fill(0n),right=Array(n).fill(0n);
+ for(let a=0;a<n;a++)for(let b=0;b<n;b++){if(a===b)continue;const A=layout[a],B=layout[b];
+  if(B.z===A.z+1&&Math.abs(B.x-A.x)<2&&Math.abs(B.y-A.y)<2)top[a]|=1n<<BigInt(b);
+  if(B.z===A.z&&B.y===A.y&&B.x===A.x-2)left[a]|=1n<<BigInt(b);
+  if(B.z===A.z&&B.y===A.y&&B.x===A.x+2)right[a]|=1n<<BigInt(b);
+ }
+ const full=(1n<<BigInt(n))-1n;
+ const free=(i,r)=>{if((top[i]&~r)!==0n)return false;return (left[i]&~r)===0n||(right[i]&~r)===0n};
+ const freeList=r=>{const a=[];for(let i=0;i<n;i++)if(!(r&(1n<<BigInt(i)))&&free(i,r))a.push(i);return a};
+ const unlock=(i,r)=>{const q=r|(1n<<BigInt(i));let s=0;for(let j=0;j<n;j++)if(!(q&(1n<<BigInt(j)))&&free(j,q))s++;return s};
+ const dead=new Set();
+ function dfs(r,path){
+  if(r===full)return path;
+  const key=r.toString();if(dead.has(key))return null;
+  const f=freeList(r);if(f.length<2){dead.add(key);return null}
+  const pairs=[];for(let i=0;i<f.length-1;i++)for(let j=i+1;j<f.length;j++)pairs.push({a:f[i],b:f[j],s:unlock(f[i],r)+unlock(f[j],r)});
+  pairs.sort((a,b)=>b.s-a.s||a.a-b.a||a.b-b.b);
+  for(const p of pairs){const ans=dfs(r|(1n<<BigInt(p.a))|(1n<<BigInt(p.b)),path.concat([[p.a,p.b]]));if(ans)return ans}
+  dead.add(key);return null;
+ }
+ return {solve:()=>dfs(0n,[])};
+}
+function getCachedSolution(name){if(SOLUTION_CACHE.has(name))return SOLUTION_CACHE.get(name);const s=createLayoutSolver(layouts[name]).solve();if(!s||s.length*2!==layouts[name].length)throw Error("No solution for "+name);SOLUTION_CACHE.set(name,s);return s}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function buildSolvableBoard(name){
+ const solution=getCachedSolution(name),normal=TILE_DEFINITIONS.filter(t=>t.group!=="flower"&&t.group!=="season"),pairs=[];
+ normal.forEach(t=>{pairs.push(t,t)});
+ const f=TILE_DEFINITIONS.filter(t=>t.group==="flower"),s=TILE_DEFINITIONS.filter(t=>t.group==="season");
+ pairs.push(f[0],f[1],s[0],s[1]);if(pairs.length!==solution.length)throw Error("Pair count mismatch");shuffle(pairs);
+ const out=[];solution.forEach(([a,b],i)=>{const d=pairs[i];out.push({...d,id:a,position:a},{...d,id:b,position:b})});return out;
+}
+let layoutName="classic",tiles=[],selected=null,history=[],moves=0,elapsed=0,timer=null;
+function isFree(pos){
+ const p=layouts[layoutName][pos];
+ const above=tiles.some(t=>!t.removed&&t.position!==pos&&(()=>{const q=layouts[layoutName][t.position];return q.z===p.z+1&&Math.abs(q.x-p.x)<2&&Math.abs(q.y-p.y)<2})());
+ if(above)return false;
+ const l=tiles.some(t=>!t.removed&&t.position!==pos&&(()=>{const q=layouts[layoutName][t.position];return q.z===p.z&&q.y===p.y&&q.x===p.x-2})());
+ const r=tiles.some(t=>!t.removed&&t.position!==pos&&(()=>{const q=layouts[layoutName][t.position];return q.z===p.z&&q.y===p.y&&q.x===p.x+2})());
+ return !l||!r;
+}
+function same(a,b){return a.matchGroup&&b.matchGroup?a.matchGroup===b.matchGroup:a.group===b.group&&a.name===b.name}
+function render(){
+ const board=document.getElementById("board");board.innerHTML="";
+ tiles.forEach(t=>{if(t.removed)return;const p=layouts[layoutName][t.position],e=document.createElement("div");e.className="tile "+(isFree(t.position)?"free":"blocked")+(selected===t.position?" selected":"");e.style.left=p.x*22+"px";e.style.top=p.y*28-p.z*8+"px";e.style.zIndex=10+p.z*100;e.textContent=t.symbol;e.onclick=()=>click(t.position);board.appendChild(e)});
+ document.getElementById("pairs").textContent=tiles.filter(t=>!t.removed).length/2;document.getElementById("moves").textContent=moves;
+}
+function click(pos){
+ const t=tiles.find(x=>x.position===pos&&!x.removed);if(!t||!isFree(pos))return;
+ if(selected===null){selected=pos;render();return}if(selected===pos){selected=null;render();return}
+ const a=tiles.find(x=>x.position===selected&&!x.removed);
+ if(a&&same(a,t)){history.push([selected,pos]);a.removed=t.removed=true;selected=null;moves++;if(!timer)timer=setInterval(()=>{elapsed++;document.getElementById("time").textContent=String(Math.floor(elapsed/60)).padStart(2,"0")+":"+String(elapsed%60).padStart(2,"0")},1000);document.getElementById("status").textContent=tiles.every(x=>x.removed)?"CLEAR!":"Match!";render()}
+ else{selected=null;document.getElementById("status").textContent="Those tiles do not match.";render()}
+}
+function newGame(){clearInterval(timer);timer=null;selected=null;history=[];moves=0;elapsed=0;document.getElementById("time").textContent="00:00";document.getElementById("status").textContent="Choose two matching free tiles.";tiles=buildSolvableBoard(layoutName);render()}
+function undo(){const p=history.pop();if(!p)return;p.forEach(pos=>{const t=tiles.find(x=>x.position===pos);if(t)t.removed=false});moves=Math.max(0,moves-1);selected=null;render()}
+function hint(){const f=tiles.filter(t=>!t.removed&&isFree(t.position));const a=f.find(x=>f.some(y=>y!==x&&same(x,y)));if(!a){document.getElementById("status").textContent="No immediate pair found.";return}selected=a.position;document.getElementById("status").textContent="Try the highlighted pair.";render()}
+function modal(id){document.getElementById(id).classList.add("open")}function close(){document.querySelectorAll(".modal").forEach(x=>x.classList.remove("open"))}
+newBtn.onclick=newGame;undoBtn.onclick=undo;hintBtn.onclick=hint;themeBtn.onclick=()=>modal("themeModal");layoutBtn.onclick=()=>modal("layoutModal");
+document.querySelectorAll("[data-close]").forEach(x=>x.onclick=close);
+document.querySelectorAll("[data-theme]").forEach(x=>x.onclick=()=>{document.body.className=x.dataset.theme==="y2k"?"":x.dataset.theme;close()});
+document.querySelectorAll("[data-layout]").forEach(x=>x.onclick=()=>{layoutName=x.dataset.layout;close();newGame()});
+window.addEventListener("load",()=>{if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});newGame()});
+</script>
+</body></html>
