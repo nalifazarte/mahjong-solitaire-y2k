@@ -1,0 +1,1 @@
+{"name":"Mahjong Solitaire Y2K","short_name":"Mahjong Y2K","description":"Offline Mahjong Solitaire with deterministic solvable boards.","start_url":"./","display":"standalone","background_color":"#ffd9f5","theme_color":"#ff4fd8","orientation":"landscape","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
